@@ -17,10 +17,36 @@ abstract class BaseDriver
         return $this->_getConnect(SECOND_DSN, SECOND_BASE_NAME);
     }
 
+    protected function _mb_parse_url($url) {
+
+        $enc_url = preg_replace_callback(
+            '%[^:/@?&=]+%usD',
+            function ($matches)
+            {
+                return urlencode($matches[0]);
+            },
+            $url
+        );
+
+        $parts = parse_url($enc_url);
+
+        if($parts === false)
+        {
+            throw new \InvalidArgumentException('Malformed URL: ' . $url);
+        }
+
+        foreach($parts as $name => $value)
+        {
+            $parts[$name] = urldecode($value);
+        }
+
+        return $parts;
+    }
+
     protected function _getConnect($dsn)
     {
         if (!isset($this->_dsn[$dsn])) {
-            $pdsn = parse_url($dsn);
+            $pdsn = $this->_mb_parse_url($dsn);
 
             $dsn = DRIVER . ':host=' . $pdsn['host'] . ';port=' . $pdsn['port'] . ';dbname=' . substr($pdsn['path'], 1, 1000) . (DRIVER !== 'pgsql' ? ';charset=' . DATABASE_ENCODING : '');
             $this->_dsn[$dsn] = new PDO($dsn, $pdsn['user'], isset($pdsn['pass']) ? $pdsn['pass'] : '', array(
